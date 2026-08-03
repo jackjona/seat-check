@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Seat Check — Cineplex availability</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0e0b12;
+    --panel:#17131c;
+    --panel-raised:#1f1a25;
+    --line:#2a2432;
+    --marquee:#e7b44e;
+    --marquee-dim:#7a6432;
+    --glow:#59c9a5;
+    --glow-dim:#2c5147;
+    --alert:#e2554b;
+    --paper:#f3efe6;
+    --dim:#948c9c;
+    --dimmer:#5c5566;
+    --radius:10px;
+    --display: 'Bebas Neue', 'Inter', sans-serif;
+    --body: 'Inter', -apple-system, sans-serif;
+    --mono: 'IBM Plex Mono', ui-monospace, monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(ellipse 900px 500px at 50% -10%, rgba(231,180,78,0.08), transparent 60%),
+      var(--ink);
+    color:var(--paper);
+    font-family:var(--body);
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit;}
+  ::selection{background:var(--marquee-dim);}
+
+  /* ---------- header ---------- */
+  header{
+    padding:28px 24px 20px;
+    border-bottom:1px solid var(--line);
+    position:sticky; top:0; z-index:20;
+    background:rgba(14,11,18,0.92);
+    backdrop-filter:blur(10px);
+  }
+  .header-inner{max-width:1100px;margin:0 auto;}
+  .brand{
+    display:flex; align-items:baseline; gap:10px; margin-bottom:18px;
+  }
+  .brand h1{
+    font-family:var(--display);
+    font-weight:400;
+    font-size:30px;
+    letter-spacing:0.06em;
+    margin:0;
+    color:var(--paper);
+  }
+  .brand h1 span{color:var(--marquee);}
+  .brand .tag{
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--dim);
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    border:1px solid var(--line);
+    padding:3px 8px;
+    border-radius:999px;
+  }
+
+  .controls{
+    display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;
+  }
+  .field{display:flex; flex-direction:column; gap:6px;}
+  .field label{
+    font-family:var(--mono); font-size:10.5px; letter-spacing:0.08em;
+    text-transform:uppercase; color:var(--dim);
+  }
+  .field input{
+    background:var(--panel);
+    border:1px solid var(--line);
+    color:var(--paper);
+    font-family:var(--body);
+    font-size:14px;
+    padding:9px 12px;
+    border-radius:8px;
+    min-width:120px;
+    outline:none;
+    transition:border-color .15s ease;
+  }
+  .field input:focus{border-color:var(--marquee);}
+  .field.movie input{min-width:200px;}
+  .field input[type="date"]{color-scheme:dark;}
+
+  .btn{
+    background:var(--marquee);
+    color:#241a05;
+    border:none;
+    font-family:var(--body);
+    font-weight:600;
+    font-size:14px;
+    padding:10px 18px;
+    border-radius:8px;
+    cursor:pointer;
+    transition:filter .15s ease, transform .1s ease;
+  }
+  .btn:hover{filter:brightness(1.08);}
+  .btn:active{transform:scale(0.98);}
+  .btn:focus-visible, input:focus-visible, .pill:focus-visible{outline:2px solid var(--marquee); outline-offset:2px;}
+
+  /* ---------- date rail ---------- */
+  main{max-width:1100px; margin:0 auto; padding:24px;}
+
+  .date-rail{
+    display:flex; gap:8px; overflow-x:auto; padding:4px 2px 14px;
+    scrollbar-width:thin;
+  }
+  .date-rail::-webkit-scrollbar{height:6px;}
+  .date-rail::-webkit-scrollbar-thumb{background:var(--line); border-radius:4px;}
+  .date-pill{
+    flex:0 0 auto;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:8px 14px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color .15s ease, background .15s ease;
+    min-width:64px;
+  }
+  .date-pill .dow{
+    font-family:var(--mono); font-size:10px; letter-spacing:0.06em;
+    color:var(--dim); text-transform:uppercase; display:block;
+  }
+  .date-pill .dom{
+    font-family:var(--display); font-size:22px; display:block; margin-top:2px;
+    color:var(--paper);
+  }
+  .date-pill.active{
+    border-color:var(--marquee);
+    background:linear-gradient(180deg, rgba(231,180,78,0.14), rgba(231,180,78,0.03));
+  }
+  .date-pill.active .dow{color:var(--marquee);}
+  .date-pill:hover{border-color:var(--dimmer);}
+
+  /* ---------- section titles ---------- */
+  .section-label{
+    font-family:var(--mono); font-size:11px; letter-spacing:0.1em;
+    text-transform:uppercase; color:var(--dim);
+    margin:22px 0 10px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .section-label::after{
+    content:''; flex:1; height:1px; background:var(--line);
+  }
+
+  /* ---------- status / empty states ---------- */
+  .status-msg{
+    font-family:var(--mono); font-size:13px; color:var(--dim);
+    padding:14px 16px; border:1px dashed var(--line); border-radius:10px;
+  }
+  .status-msg.error{color:var(--alert); border-color:rgba(226,85,75,0.35);}
+  .status-msg a{color:var(--marquee); text-decoration:underline;}
+
+  /* ---------- showtime pills ---------- */
+  .showtime-list{display:flex; flex-direction:column; gap:8px;}
+  .movie-group{margin-bottom:4px;}
+  .movie-title{
+    font-family:var(--display); font-size:20px; letter-spacing:0.02em;
+    color:var(--paper); margin:14px 0 8px;
+  }
+  .movie-meta{font-family:var(--mono); font-size:11px; color:var(--dim);}
+
+  .filter-row{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:18px;}
+  .chip{
+    background:var(--panel);
+    border:1px solid var(--line);
+    color:var(--dim);
+    font-family:var(--mono); font-size:11.5px; letter-spacing:0.03em;
+    padding:7px 13px;
+    border-radius:999px;
+    cursor:pointer;
+    transition:border-color .15s ease, color .15s ease, background .15s ease;
+  }
+  .chip:hover{border-color:var(--dimmer); color:var(--paper);}
+  .chip.active{
+    border-color:var(--glow); color:var(--paper);
+    background:linear-gradient(180deg, rgba(89,201,165,0.14), rgba(89,201,165,0.03));
+  }
+
+  .time-grid{display:flex; flex-wrap:wrap; gap:8px;}
+  .pill{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:10px 14px;
+    cursor:pointer;
+    display:flex; flex-direction:column; gap:6px;
+    min-width:108px;
+    text-align:left;
+    transition:border-color .15s ease, transform .1s ease;
+  }
+  .pill:hover{border-color:var(--dimmer); transform:translateY(-1px);}
+  .pill.selected{border-color:var(--glow); background:linear-gradient(180deg, rgba(89,201,165,0.12), rgba(89,201,165,0.02));}
+  .pill .time{font-family:var(--mono); font-weight:600; font-size:15px; color:var(--paper);}
+  .pill .exp{font-family:var(--mono); font-size:9.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--dim);}
+  .pill .gauge-track{height:4px; border-radius:3px; background:var(--line); overflow:hidden;}
+  .pill .gauge-fill{height:100%; border-radius:3px;}
+  .pill .seats-left{font-family:var(--mono); font-size:10.5px; color:var(--dim);}
+  .pill.soldout{opacity:0.5; cursor:not-allowed;}
+  .pill.soldout .time{text-decoration:line-through;}
+
+  /* ---------- seat map ---------- */
+  .stage-card{
+    margin-top:28px;
+    border:1px solid var(--line);
+    border-radius:14px;
+    background:var(--panel);
+    padding:26px 20px 20px;
+  }
+  .stage-header{
+    display:flex; justify-content:space-between; align-items:baseline;
+    margin-bottom:6px; flex-wrap:wrap; gap:6px;
+  }
+  .stage-header h3{
+    font-family:var(--display); font-size:22px; font-weight:400; margin:0;
+    letter-spacing:0.02em;
+  }
+  .stage-header .sub{font-family:var(--mono); font-size:11.5px; color:var(--dim);}
+
+  .screen-wrap{margin:22px auto 4px; max-width:640px;}
+  .screen{
+    height:10px;
+    border-radius:50% / 100%;
+    background:linear-gradient(90deg, transparent, var(--marquee), transparent);
+    box-shadow:0 0 28px 4px rgba(231,180,78,0.35);
+  }
+  .screen-label{
+    text-align:center; font-family:var(--mono); font-size:10px;
+    letter-spacing:0.3em; color:var(--dim); margin-top:8px;
+  }
+  .zone-caption{
+    text-align:center; font-family:var(--mono); font-size:10.5px;
+    color:var(--dimmer); margin-top:6px;
+  }
+  .imax-warning{
+    text-align:center; font-family:var(--mono); font-size:10.5px;
+    color:var(--marquee); margin-top:10px; margin-bottom:6px;
+  }
+
+  .seat-scroll{overflow-x:auto; padding:12px 4px 8px;}
+  .seat-rows{display:flex; flex-direction:column; gap:5px; width:max-content; margin:0 auto;}
+  .seat-row{display:flex; align-items:center; gap:8px; padding:2px 8px; border-radius:6px; position:relative;}
+  .seat-row.zone-screen{background:linear-gradient(90deg, rgba(231,180,78,0.07), transparent 70%);}
+  .seat-row.zone-back{background:linear-gradient(90deg, rgba(148,140,156,0.09), transparent 70%);}
+  .row-label{
+    font-family:var(--mono); font-size:10.5px; color:var(--dimmer);
+    width:18px; text-align:right; flex:0 0 auto;
+  }
+  .row-label.zone-screen{color:var(--marquee);}
+  .row-label.zone-back{color:var(--paper);}
+  .aisle-gap{height:12px;}
+  .seat-grid{display:grid; gap:4px;}
+  .seat{
+    width:20px; height:20px; border-radius:4px 4px 6px 6px;
+    background:var(--line);
+    display:flex; align-items:center; justify-content:center;
+    font-size:9px; line-height:1;
+    border:1px solid transparent;
+  }
+  .seat.available{background:var(--glow); box-shadow:0 0 6px rgba(89,201,165,0.55); color:#0b241c;}
+  .seat.occupied{background:var(--panel-raised); border-color:var(--line);}
+  .seat.broken{background:repeating-linear-gradient(45deg, var(--panel-raised), var(--panel-raised) 3px, var(--alert) 3px, var(--alert) 4px); opacity:0.6;}
+  .seat.unknown{background:transparent; border:1px dashed var(--line); opacity:0.35;}
+  .seat.seat-wheelchair{border:2px solid #6fb2e0;}
+  .seat.seat-companion{border:2px dashed #b98fe0;}
+
+  .row-tag{
+    position:absolute; right:100%; margin-right:8px;
+    font-family:var(--mono); font-size:9px; letter-spacing:0.06em; text-transform:uppercase;
+    color:var(--marquee); white-space:nowrap; opacity:0.85;
+  }
+  .row-tag.back{color:var(--dim);}
+
+  .legend{
+    display:flex; flex-wrap:wrap; gap:16px; margin-top:20px; padding-top:16px;
+    border-top:1px solid var(--line);
+  }
+  .legend-item{display:flex; align-items:center; gap:7px; font-family:var(--mono); font-size:11px; color:var(--dim);}
+  .legend-swatch{width:13px; height:13px; border-radius:3px; display:flex; align-items:center; justify-content:center; font-size:8px;}
+  .legend-note{
+    font-family:var(--body); font-size:12px; color:var(--dim);
+    margin-top:10px; line-height:1.5;
+  }
+
+  .loading-bar{
+    height:2px; width:100%; background:var(--line); overflow:hidden; border-radius:2px; margin:14px 0;
+  }
+  .loading-bar span{
+    display:block; height:100%; width:40%; background:var(--marquee);
+    animation:slide 1s ease-in-out infinite;
+  }
+  @keyframes slide{
+    0%{transform:translateX(-100%);}
+    100%{transform:translateX(350%);}
+  }
+
+  footer{
+    max-width:1100px; margin:40px auto 30px; padding:0 24px;
+    font-family:var(--mono); font-size:11px; color:var(--dimmer);
+    border-top:1px solid var(--line); padding-top:16px;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .loading-bar span{animation:none;}
+    .pill, .date-pill{transition:none;}
+  }
+
+  @media (max-width:640px){
+    .brand h1{font-size:24px;}
+    .field input{min-width:100px;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="brand">
+      <h1>Seat<span>Check</span></h1>
+      <span class="tag">Cineplex availability</span>
+    </div>
+    <div class="controls">
+      <div class="field movie">
+        <label for="movieInput">Movie</label>
+        <input id="movieInput" type="text" value="Odyssey" placeholder="e.g. Odyssey, Leave Blank To View All Movies" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="filmIdInput">Film ID <span style="opacity:.6;">(optional)</span></label>
+        <input id="filmIdInput" type="text" placeholder="e.g. 37617" inputmode="numeric" style="min-width:90px;">
+      </div>
+      <div class="field">
+        <label for="theatreInput">Theatre ID</label>
+        <input id="theatreInput" type="text" value="7408" inputmode="numeric" style="min-width:90px;">
+      </div>
+      <div class="field">
+        <label for="dateInput">Jump to date</label>
+        <input id="dateInput" type="date">
+      </div>
+      <div class="field" style="flex:1 1 220px;">
+        <label for="apiBaseInput">API base <span style="opacity:.6;">(blank = this page)</span></label>
+        <input id="apiBaseInput" type="text" value="" placeholder="leave blank" style="width:100%; font-family:var(--mono); font-size:12.5px;">
+      </div>
+      <button class="btn" id="refreshBtn">Search</button>
+    </div>
+    <div id="proxyNote" class="status-msg" style="margin-top:12px; display:none;"></div>
+  </div>
+</header>
+
+<main>
+  <div class="section-label">Choose a day</div>
+  <div class="date-rail" id="dateRail"></div>
+
+  <div id="listArea">
+    <div class="status-msg">Pick a date above to load showtimes.</div>
+  </div>
+
+  <div id="stageArea"></div>
+</main>
+
+<footer>
+  Data pulled live from Cineplex's public theatrical &amp; ticketing endpoints. Seat counts and layouts refresh each time you select a showtime — nothing is cached or booked here, this is read-only.
+</footer>
+
+<script>
+(function(){
+  const state = {
+    theatreId: '7408',
+    apiBase: '',
+    movieQuery: 'odyssey',
+    filmId: '',
+    dates: [],
+    selectedDateISO: null,
+    sessions: [],
+    selectedSession: null,
+    loadingList: false,
+    loadingSeats: false,
+    moviesMap: null,
+    experienceFilter: 'all',
+  };
+
+  const dateRail = document.getElementById('dateRail');
+  const listArea = document.getElementById('listArea');
+  const stageArea = document.getElementById('stageArea');
+  const movieInput = document.getElementById('movieInput');
+  const theatreInput = document.getElementById('theatreInput');
+  const apiBaseInput = document.getElementById('apiBaseInput');
+  const filmIdInput = document.getElementById('filmIdInput');
+  const proxyNote = document.getElementById('proxyNote');
+  const dateInput = document.getElementById('dateInput');
+  const refreshBtn = document.getElementById('refreshBtn');
+
+  const DOW = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+
+  function isoOf(d){
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+  function apiDateOf(d){
+    return (d.getMonth()+1)+'/'+d.getDate()+'/'+d.getFullYear();
+  }
+  function buildDateRail(){
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    state.dates = [];
+    for(let i=0;i<14;i++){
+      const d = new Date(today);
+      d.setDate(d.getDate()+i);
+      state.dates.push(d);
+    }
+    if(!state.selectedDateISO){
+      state.selectedDateISO = isoOf(state.dates[0]);
+    }
+    dateInput.value = state.selectedDateISO;
+  }
+
+  function renderDateRail(){
+    dateRail.innerHTML = '';
+    state.dates.forEach((d,i)=>{
+      const iso = isoOf(d);
+      const btn = document.createElement('button');
+      btn.className = 'date-pill' + (iso===state.selectedDateISO ? ' active' : '');
+      btn.setAttribute('type','button');
+      const dowLabel = i===0 ? 'TODAY' : (i===1 ? 'TMRW' : DOW[d.getDay()]);
+      btn.innerHTML = '<span class="dow">'+dowLabel+'</span><span class="dom">'+d.getDate()+'</span>';
+      btn.addEventListener('click', ()=>{
+        state.selectedDateISO = iso;
+        dateInput.value = iso;
+        loadShowtimes();
+      });
+      dateRail.appendChild(btn);
+    });
+  }
+
+  function fmtTime(isoStr){
+    // isoStr like 2026-07-21T14:00:00
+    const t = isoStr.split('T')[1];
+    let [h,m] = t.split(':').map(Number);
+    const ampm = h>=12 ? 'PM' : 'AM';
+    h = h % 12; if(h===0) h=12;
+    return h+':'+String(m).padStart(2,'0')+' '+ampm;
+  }
+
+  function gaugeInfo(seatsRemaining, soldOut){
+    if(soldOut || seatsRemaining<=0) return {label:'Sold out', color:'var(--alert)', pct:0};
+    if(seatsRemaining<40) return {label:seatsRemaining+' left', color:'var(--alert)', pct:15};
+    if(seatsRemaining<130) return {label:seatsRemaining+' left', color:'var(--marquee)', pct:50};
+    return {label:seatsRemaining+' left', color:'var(--glow)', pct:90};
+  }
+
+  async function fetchJSON(url){
+    const res = await fetch(url, {headers:{'Accept':'application/json'}});
+    const body = await res.json().catch(()=>null);
+    if(!res.ok){
+      const detail = (body && (body.message || body.error)) || ('HTTP '+res.status);
+      throw new Error(detail);
+    }
+    if(body===null){
+      throw new Error('Got a 200 but the response body wasn\'t valid JSON — restart the proxy (it may be an older version) and try again.');
+    }
+    return body;
+  }
+
+  async function loadShowtimes(){
+    renderDateRail();
+    state.loadingList = true;
+    state.selectedSession = null;
+    stageArea.innerHTML = '';
+    listArea.innerHTML = '<div class="loading-bar"><span></span></div><div class="status-msg">Loading showtimes…</div>';
+
+    const dateObj = new Date(state.selectedDateISO+'T00:00:00');
+    const url = state.apiBase + '/prod/cpx/theatrical/api/v1/showtimes?language=en&locationId='
+      + encodeURIComponent(state.theatreId) + '&date=' + encodeURIComponent(apiDateOf(dateObj))
+      + (state.filmId ? '&filmId=' + encodeURIComponent(state.filmId) : '');
+
+    try{
+      const data = await fetchJSON(url);
+      const movies = new Map(); // movieName -> Map(sessionId -> session)
+
+      (data || []).forEach(theatreBlock=>{
+        (theatreBlock.dates || []).forEach(day=>{
+          (day.movies || []).forEach(movie=>{
+            if(state.movieQuery && !movie.name.toLowerCase().includes(state.movieQuery)) return;
+            if(!movies.has(movie.name)) movies.set(movie.name, new Map());
+            const sessionMap = movies.get(movie.name);
+            (movie.experiences || []).forEach(exp=>{
+              const tags = exp.experienceTypes || ['Regular'];
+              (exp.sessions || []).forEach(s=>{
+                const key = s.vistaSessionId;
+                if(sessionMap.has(key)){
+                  const existing = sessionMap.get(key);
+                  tags.forEach(t=>existing.tags.add(t));
+                } else {
+                  sessionMap.set(key, {
+                    id: s.vistaSessionId,
+                    start: s.showStartDateTime,
+                    seatsRemaining: s.seatsRemaining,
+                    isSoldOut: s.isSoldOut,
+                    auditorium: s.auditorium,
+                    movieName: movie.name,
+                    movieId: movie.id,
+                    rating: movie.localRating,
+                    tags: new Set(tags),
+                  });
+                }
+              });
+            });
+          });
+        });
+      });
+
+      state.loadingList = false;
+      state.moviesMap = movies;
+      renderShowtimeList(movies);
+    }catch(err){
+      state.loadingList = false;
+      listArea.innerHTML =
+        '<div class="status-msg error">Couldn\'t load showtimes (' + err.message + ').<br>'
+        + 'If "API base" above points at something other than this page, double-check that address is reachable and CORS-enabled.</div>';
+    }
+  }
+
+  function renderShowtimeList(movies){
+    if(movies.size===0){
+      listArea.innerHTML = '<div class="status-msg">No showtimes matching “'+movieInput.value+'” on this date. Try another day or check the spelling.</div>';
+      return;
+    }
+
+    // Collect every distinct experience tag across all matching movies/sessions
+    const allTags = new Set();
+    movies.forEach(sessionMap=>{
+      sessionMap.forEach(s=> s.tags.forEach(t=>allTags.add(t)));
+    });
+
+    listArea.innerHTML = '';
+
+    if(allTags.size>1){
+      const filterRow = document.createElement('div');
+      filterRow.className = 'filter-row';
+      const makeChip = (label, value)=>{
+        const c = document.createElement('button');
+        c.type = 'button';
+        c.className = 'chip' + (state.experienceFilter===value ? ' active' : '');
+        c.textContent = label;
+        c.addEventListener('click', ()=>{
+          state.experienceFilter = value;
+          renderShowtimeList(movies);
+        });
+        return c;
+      };
+      filterRow.appendChild(makeChip('All room types', 'all'));
+      Array.from(allTags).sort().forEach(tag=> filterRow.appendChild(makeChip(tag, tag)));
+      listArea.appendChild(filterRow);
+    }
+
+    const wrap = document.createElement('div');
+    wrap.className = 'showtime-list';
+    let anyVisible = false;
+
+    movies.forEach((sessionMap, movieName)=>{
+      let sessions = Array.from(sessionMap.values()).sort((a,b)=> a.start.localeCompare(b.start));
+      if(state.experienceFilter!=='all'){
+        sessions = sessions.filter(s=> s.tags.has(state.experienceFilter));
+      }
+      if(sessions.length===0) return;
+      anyVisible = true;
+
+      const group = document.createElement('div');
+      group.className = 'movie-group';
+
+      const rating = sessions[0].rating || '';
+      const movieId = sessions[0].movieId;
+
+      group.innerHTML = '<div class="movie-title">'+movieName+'</div>'
+        + '<div class="movie-meta">'+(rating?('Rated '+rating+' · '):'')+sessions.length+' showtime'+(sessions.length===1?'':'s')
+        + ' · <button type="button" class="use-id-btn" data-id="'+movieId+'" style="background:none;border:none;color:var(--dim);font-family:var(--mono);font-size:11px;cursor:pointer;padding:0;text-decoration:underline;text-underline-offset:2px;">Film ID '+movieId+' — use this</button></div>';
+
+      const grid = document.createElement('div');
+      grid.className = 'time-grid';
+
+      sessions.forEach(s=>{
+        const g = gaugeInfo(s.seatsRemaining, s.isSoldOut);
+        const pill = document.createElement('button');
+        pill.type = 'button';
+        pill.className = 'pill' + (s.isSoldOut ? ' soldout' : '') + (state.selectedSession && state.selectedSession.id===s.id ? ' selected':'');
+        pill.disabled = false; // still viewable even if sold out, just no point picking a seat
+        pill.innerHTML =
+          '<span class="time">'+fmtTime(s.start)+'</span>'
+          + '<span class="exp">'+Array.from(s.tags).join(' · ')+'</span>'
+          + '<span class="gauge-track"><span class="gauge-fill" style="width:'+g.pct+'%; background:'+g.color+';"></span></span>'
+          + '<span class="seats-left" style="color:'+g.color+';">'+g.label+'</span>';
+        pill.addEventListener('click', ()=>{
+          state.selectedSession = s;
+          renderShowtimeList(movies);
+          loadSeatMap(s);
+        });
+        grid.appendChild(pill);
+      });
+
+      group.appendChild(grid);
+      wrap.appendChild(group);
+    });
+
+    if(!anyVisible){
+      const msg = document.createElement('div');
+      msg.className = 'status-msg';
+      msg.textContent = 'No showtimes for that room type on this date. Try "All room types" or another day.';
+      listArea.appendChild(msg);
+      return;
+    }
+
+    listArea.appendChild(wrap);
+    listArea.querySelectorAll('.use-id-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        filmIdInput.value = btn.dataset.id;
+        state.filmId = btn.dataset.id;
+        loadShowtimes();
+      });
+    });
+  }
+
+  async function loadSeatMap(session){
+    stageArea.innerHTML =
+      '<div class="stage-card">'
+      + '<div class="stage-header"><h3>'+session.movieName+'</h3>'
+      + '<span class="sub">'+fmtTime(session.start)+' · '+Array.from(session.tags).join(' · ')+' · Aud '+session.auditorium+'</span></div>'
+      + '<div class="loading-bar"><span></span></div>'
+      + '<div class="status-msg">Loading seat map…</div>'
+      + '</div>';
+
+    const layoutUrl = state.apiBase + '/prod/ticketing/api/v1/theatre/'+state.theatreId+'/showtime/'+session.id+'/seat-layout';
+    const availUrl = state.apiBase + '/prod/ticketing/api/v1/theatre/'+state.theatreId+'/showtime/'+session.id+'/seat-availability';
+
+    try{
+      const [layout, avail] = await Promise.all([fetchJSON(layoutUrl), fetchJSON(availUrl)]);
+      renderSeatMap(session, layout, avail);
+    }catch(err){
+      const card = stageArea.querySelector('.stage-card');
+      card.innerHTML =
+        '<div class="stage-header"><h3>'+session.movieName+'</h3>'
+        + '<span class="sub">'+fmtTime(session.start)+'</span></div>'
+        + '<div class="status-msg error">Couldn\'t load the seat map (' + err.message + '). '
+        + 'The showtime feed still shows <strong>'+session.seatsRemaining+' seats left</strong> as of the last list refresh.</div>';
+    }
+  }
+
+  function renderSeatMap(session, layout, avail){
+    const availability = avail.seatAvailabilities || {};
+    const rows = (layout.standardSeats && layout.standardSeats.rows) || [];
+    const columnCount = (layout.standardSeats && layout.standardSeats.columnCount) || 30;
+    let total = 0, availableCount = 0;
+
+    // Identify rows closest to the screen and which is furthest back.
+    const realRows = rows.filter(r=> r.seats && r.seats.length>0);
+    const isIMAX = Array.from(session.tags).some(t=> t.toUpperCase().includes('IMAX'));
+    const frontZoneSize = Math.min(4, Math.max(1, Math.ceil(realRows.length*0.2)));
+    const frontZoneLabels = realRows.slice(0, frontZoneSize).map(r=>r.label);
+    const backRowLabel = realRows.length ? realRows[realRows.length-1].label : null;
+    const firstRowLabel = realRows.length ? realRows[0].label : null;
+
+    const rowsHtml = rows.map(row=>{
+      if(!row.seats || row.seats.length===0){
+        return '<div class="aisle-gap"></div>';
+      }
+      const isFront = frontZoneLabels.includes(row.label);
+      const isBack = row.label===backRowLabel;
+      const zoneClass = isFront ? ' zone-screen' : (isBack ? ' zone-back' : '');
+
+      const seatsHtml = row.seats.map(seat=>{
+        const status = availability[seat.id];
+        let cls = 'unknown';
+        if(status==='Available'){ cls='available'; availableCount++; }
+        else if(status==='Occupied'){ cls='occupied'; }
+        else if(status==='Broken'){ cls='broken'; }
+        total++;
+
+        let typeCls = '', icon = '';
+        if(seat.type==='Wheelchair'){ typeCls=' seat-wheelchair'; icon='♿'; }
+        else if(seat.type==='Companion'){ typeCls=' seat-companion'; icon='C'; }
+
+        const typeNote = seat.type && seat.type!=='Standard'
+          ? (seat.type==='Wheelchair' ? ' — wheelchair space' : ' — companion seat')
+          : '';
+        const title = seat.label+' — '+(status||'not offered')+typeNote;
+
+        return '<span class="seat '+cls+typeCls+'" style="grid-column:'+(seat.column+1)+';" title="'+title+'">'+icon+'</span>';
+      }).join('');
+
+      let tag = '';
+      if(row.label===firstRowLabel) tag = '<span class="row-tag">closest to screen</span>';
+      else if(isBack) tag = '<span class="row-tag back">back row</span>';
+
+      return '<div class="seat-row'+zoneClass+'">'
+        + '<span class="row-label'+zoneClass+'">'+(row.label||'')+'</span>'
+        + '<div class="seat-grid" style="grid-template-columns:repeat('+columnCount+', 20px);">'+seatsHtml+'</div>'
+        + tag
+        + '</div>';
+    }).join('');
+
+    const zoneCaption = (firstRowLabel && backRowLabel)
+      ? '<div class="zone-caption">Row '+firstRowLabel+' — closest to the screen &nbsp;·&nbsp; Row '+backRowLabel+' — back of the theatre</div>'
+      : '';
+    const imaxWarning = isIMAX
+      ? '<div class="imax-warning">⚠ Rows '+frontZoneLabels[0]+'–'+frontZoneLabels[frontZoneLabels.length-1]+' sit very close to an IMAX screen — expect a steep viewing angle and possible edge warping</div>'
+      : '';
+
+    const card = stageArea.querySelector('.stage-card');
+    card.innerHTML =
+      '<div class="stage-header"><h3>'+session.movieName+'</h3>'
+      + '<span class="sub">'+fmtTime(session.start)+' · '+Array.from(session.tags).join(' · ')+' · Aud '+session.auditorium+'</span></div>'
+      + '<div class="screen-wrap"><div class="screen"></div><div class="screen-label">SCREEN</div>'+zoneCaption+'</div>'
+      + imaxWarning
+      + '<div class="seat-scroll"><div class="seat-rows">'+rowsHtml+'</div></div>'
+      + '<div class="legend">'
+      +   '<span class="legend-item"><span class="legend-swatch" style="background:var(--glow); box-shadow:0 0 6px rgba(89,201,165,0.55);"></span>Available</span>'
+      +   '<span class="legend-item"><span class="legend-swatch" style="background:var(--panel-raised); border:1px solid var(--line);"></span>Occupied</span>'
+      +   '<span class="legend-item"><span class="legend-swatch" style="background:repeating-linear-gradient(45deg, var(--panel-raised), var(--panel-raised) 3px, var(--alert) 3px, var(--alert) 4px);"></span>Broken / unusable</span>'
+      +   '<span class="legend-item"><span class="legend-swatch" style="border:2px solid #6fb2e0; background:transparent;">♿</span>Wheelchair space</span>'
+      +   '<span class="legend-item"><span class="legend-swatch" style="border:2px dashed #b98fe0; background:transparent;">C</span>Companion seat</span>'
+      +   '<span class="legend-item" style="margin-left:auto;">'+availableCount+' of '+total+' mapped seats open</span>'
+      + '</div>'
+      + '<div class="legend-note">Wheelchair spaces and companion seats are held for accessibility needs and generally can\'t be booked by other guests — they\'re shown here for reference, not as open inventory.</div>';
+  }
+
+  // ---- events ----
+  refreshBtn.addEventListener('click', ()=>{
+    state.movieQuery = movieInput.value.trim().toLowerCase();
+    state.theatreId = theatreInput.value.trim() || '7408';
+    state.apiBase = apiBaseInput.value.trim().replace(/\/$/, '');
+    state.filmId = filmIdInput.value.trim();
+    if(dateInput.value) state.selectedDateISO = dateInput.value;
+    buildDateRail();
+    // keep the chosen date pinned even if it's outside the default 14-day rail window
+    if(!state.dates.some(d=>isoOf(d)===state.selectedDateISO)){
+      state.dates.unshift(new Date(state.selectedDateISO+'T00:00:00'));
+    }
+    loadShowtimes();
+  });
+  dateInput.addEventListener('change', ()=>{
+    state.selectedDateISO = dateInput.value;
+    if(!state.dates.some(d=>isoOf(d)===state.selectedDateISO)){
+      state.dates.unshift(new Date(state.selectedDateISO+'T00:00:00'));
+    }
+    loadShowtimes();
+  });
+  [movieInput, theatreInput].forEach(el=>{
+    el.addEventListener('keydown', e=>{ if(e.key==='Enter') refreshBtn.click(); });
+  });
+
+  // ---- init ----
+  state.movieQuery = movieInput.value.trim().toLowerCase();
+  buildDateRail();
+  loadShowtimes();
+})();
+</script>
+
+</body>
+</html>
